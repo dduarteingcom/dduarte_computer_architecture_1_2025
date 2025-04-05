@@ -23,6 +23,30 @@ class ImageProcessor:
         subprocess.run(["ld", "-o", "interpolation", "interpolation.o"], check=True)
         # 3. Ejecutar el programa directamente en Linux
         subprocess.run(["./interpolation"], check = True)
+        self.pruebita()
+    
+    def pruebita(self):
+        # Configuración
+        ancho = 97
+        alto = 97
+
+        # Leer archivos
+        input_data = np.fromfile('quadrant.img', dtype=np.uint8)
+        output_data = np.fromfile('output.img', dtype=np.uint8)
+
+        # Mostrar diferencias en hexadecimal
+        N = 100  # mostrar primeros 100 píxeles
+        print(f"{'Index':>5} {'Input (hex)':>12} {'Output (hex)':>12} {'Expected Output':>16}")
+
+        for i in range(N):
+            original = input_data[i]
+            processed = output_data[i]
+            expected = (original + 1) & 0xFF
+            print(f"{i:5} {original:12X} {processed:12X} {expected:16X}")
+
+        # Validar que todos estén bien
+        success = np.all((input_data + 1) & 0xFF == output_data)
+        print("\n¿Todos los píxeles son input + 1? ->", "✅ Sí" if success else "❌ No")
         
     def get_quadrant_array(self, quadrantN):
         rowN = (quadrantN - 1) // 4
