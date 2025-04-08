@@ -92,7 +92,4 @@ class GUI:
                     print("Número de cuadrante inválido. Debe ser entre 1 y 16.")
             except ValueError:
                 print("Por favor ingrese un número válido.")
-                        
-
-
-        
+                            

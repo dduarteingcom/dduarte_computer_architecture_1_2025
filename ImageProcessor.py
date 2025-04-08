@@ -16,14 +16,14 @@ class ImageProcessor:
         quadrantArray = self.get_quadrant_array(quadrantN)
         fileName = f"quadrant.img"
         self.save_quadrant(quadrantArray,fileName)
-        self.img_to_jpeg(fileName, "prueba.jpg", 97, 97)
         # 1. Ensamblar .asm a .o
-        subprocess.run(["nasm", "-felf64", "-o", "interpolation.o", "interpolation.asm"], check=True)
+        subprocess.run(["nasm", "-felf64", "-o", "sub_interpolation.o", "sub_interpolation.asm"], check=True)
         # 2. Ligar .o a ejecutable
-        subprocess.run(["ld", "-o", "interpolation", "interpolation.o"], check=True)
+        subprocess.run(["ld", "-o", "sub_interpolation", "sub_interpolation.o"], check=True)
         # 3. Ejecutar el programa directamente en Linux
-        subprocess.run(["./interpolation"], check = True)
-        self.pruebita()
+        subprocess.run(["./sub_interpolation"], check = True)
+        self.img_to_jpeg("output.img", "prueba.jpg", 385, 385)
+        #self.pruebita()
     
     def pruebita(self):
         # Configuración
