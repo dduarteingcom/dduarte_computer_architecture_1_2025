@@ -83,13 +83,13 @@ class GUI:
         self.root.mainloop()
 
     def interpolate_quadrant(self):
-            try:
+            #try:
                 quadrant_number = int(self.quadrant_entry.get())
                 if 1 <= quadrant_number <= 16:
                     print(f"Interpolando cuadrante {quadrant_number}...")
                     self.processor.process_quadrant(quadrant_number)
                 else:
                     print("Número de cuadrante inválido. Debe ser entre 1 y 16.")
-            except ValueError:
-                print("Por favor ingrese un número válido.")
+            #except ValueError:
+                #print("Por favor ingrese un número válido.")
                             

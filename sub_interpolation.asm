@@ -2,7 +2,8 @@ BITS 64            ; <-- ¡MUY IMPORTANTE!
 section .bss
 input_buffer resb 97*97
 output_buffer resb 385*385
-temp_interp resq 6
+pixel_buffer resb 4
+temp_interp resq 4
 
 section .text
 global _start
@@ -36,9 +37,8 @@ outer_loop:
 inner_loop:
     ; === Cargar A, B, C, D ===
     ;offset_x = x * 97
-    mov r8, r14
-    imul r8, r8, 4        ; r8 = rcx * 4
-    imul r8, r8, 97      ; r8 = (rcx * 4) * 97
+    mov r8, r14      
+    imul r8, r8, 97      ; r8 = rcx  * 97
 
     ;offset_x = x +1 * 97
     mov r9, r14
@@ -94,8 +94,10 @@ inner_loop:
     add r12, 3
     mov [rdi + r12], dl
     
-     mov [rel temp_interp + 0*8], al
-     mov [rel temp_interp + 1*8], bl
+     mov [rel pixel_buffer + 0], al
+     mov [rel pixel_buffer + 1], bl
+     mov [rel pixel_buffer + 2], cl
+     mov [rel pixel_buffer + 3], dl
     ;Tengo disponibles los 
     
     ;offset_x = x * 4
@@ -104,9 +106,9 @@ inner_loop:
     ;offset_y ya está aplicado
 
     ; a1 = (2/3)*A + (1/3)*B pos [4x,4y+1]
-    mov al, [rel temp_interp + 0*8]
+    mov al, [rel pixel_buffer + 0]
     mov bl, 2
-    mov r8b, [rel temp_interp + 1*8]
+    mov r8b, [rel pixel_buffer + 1]
     mov r12b, 1
     mov r10, r9
     imul r10, r10, 385
@@ -117,9 +119,9 @@ inner_loop:
     call interpolar
 
     ; a2 = (1/3)*A + (2/3)*B pos [4x,4y+2]
-    mov al, [rel temp_interp + 0*8]
+    mov al, [rel pixel_buffer + 0]
     mov bl, 1
-    mov r8b, [rel temp_interp + 1*8]
+    mov r8b, [rel pixel_buffer + 1]
     mov r12b, 2
     mov r10, r9
     imul r10, r10, 385
@@ -130,9 +132,9 @@ inner_loop:
     call interpolar
 
     ; c1 = (2/3)*A + (1/3)*C pos [4x + 1,4y]
-    mov al, [rel temp_interp + 0*8]
+    mov al, [rel pixel_buffer + 0]
     mov bl, 2
-    mov r8b, cl
+    mov r8b, [rel pixel_buffer + 2]
     mov r12b, 1
     mov r10, r9
     add r10 , 1
@@ -140,13 +142,13 @@ inner_loop:
     add r10, r11
     add r10, rdi
     mov r15, r10
-    mov [rel temp_interp + 2*8], r15
+    mov [rel temp_interp + 0*8], r15
     call interpolar
 
     ; c2 = (2/3)*B + (1/3)*D pos [4x + 1,4y + 3]
-    mov al, [rel temp_interp + 1*8]
+    mov al, [rel pixel_buffer + 1]
     mov bl, 2
-    mov r8b, dl
+    mov r8b, [rel pixel_buffer + 3]
     mov r12b, 1
     mov r10, r9
     add r10, 1
@@ -155,13 +157,13 @@ inner_loop:
     add r10, 3
     add r10, rdi
     mov r15, r10
-    mov [rel temp_interp + 3*8], r15
+    mov [rel temp_interp + 1*8], r15
     call interpolar
 
     ; g1 = (1/3)*A + (2/3)*C pos [4x + 2,4y]
-    mov al, [rel temp_interp + 0*8]
+    mov al, [rel pixel_buffer + 0]
     mov bl, 1
-    mov r8b, cl
+    mov r8b, [rel pixel_buffer + 2]
     mov r12b, 2
     mov r10, r9
     add r10, 2
@@ -169,13 +171,13 @@ inner_loop:
     add r10, r11
     add r10, rdi
     mov r15, r10
-    mov [rel temp_interp + 4*8], r15
+    mov [rel temp_interp + 2*8], r15
     call interpolar
 
     ; g2 = (1/3)*B + (2/3)*D pos [4x + 2,4y + 3]
-    mov al, [rel temp_interp + 1*8]
+    mov al, [rel pixel_buffer + 1]
     mov bl, 1
-    mov r8b, dl
+    mov r8b, [rel pixel_buffer + 3]
     mov r12b, 2
     mov r10, r9
     add r10, 2
@@ -184,13 +186,13 @@ inner_loop:
     add r10, 3
     add r10, rdi
     mov r15, r10
-    mov [rel temp_interp + 5*8], r15
+    mov [rel temp_interp + 3*8], r15
     call interpolar
 
     ; k1 = (2/3)*C + (1/3)*D pos [4x + 3,4y + 1]
-    mov al, cl
+    mov al, [rel pixel_buffer + 2]
     mov bl, 2
-    mov r8b, dl
+    mov r8b, [rel pixel_buffer + 3]
     mov r12b, 1
     mov r10, r9
     add r10, 3
@@ -202,9 +204,9 @@ inner_loop:
     call interpolar
 
     ; k2 = (1/3)*C + (2/3)*D pos [4x + 3,4y + 2]
-    mov al, cl
+    mov al, [rel pixel_buffer + 2]
     mov bl, 1
-    mov r8b, dl
+    mov r8b, [rel pixel_buffer + 3]
     mov r12b, 2
     mov r10, r9
     add r10, 3
@@ -215,10 +217,10 @@ inner_loop:
     mov r15, r10
     call interpolar
     ; d = (2/3) * c1 + (1/3)*c2 pos [4x + 1,4y + 1]
-    mov r15, [rel temp_interp + 2*8]   ; rax = dirección donde se guardó c1
+    mov r15, [rel temp_interp + 0*8]   ; rax = dirección donde se guardó c1
     mov al, [r15]                      ; al = pixel c1
     mov bl, 2
-    mov r12, [rel temp_interp + 3*8]   ; rbx = dirección donde se guardó c2
+    mov r12, [rel temp_interp + 1*8]   ; rbx = dirección donde se guardó c2
     mov r8b, [r12]  
     mov r12b, 1
     mov r10, r9
@@ -231,10 +233,10 @@ inner_loop:
     call interpolar
 
     ; e = (1/3) * c1 + (2/3)*c2  pos [4x + 1,4y + 2]
-    mov r15, [rel temp_interp + 2*8]   ; rax = dirección donde se guardó c1
+    mov r15, [rel temp_interp + 0*8]   ; rax = dirección donde se guardó c1
     mov al, [r15]                      ; al = pixel c1
     mov bl, 1
-    mov r12, [rel temp_interp + 3*8]   ; rbx = dirección donde se guardó c2
+    mov r12, [rel temp_interp + 1*8]   ; rbx = dirección donde se guardó c2
     mov r8b, [r12]  
     mov r12b, 2
     mov r10, r9
@@ -247,10 +249,10 @@ inner_loop:
     call interpolar
 
     ; h = (2/3) * g1 + (1/3)*g2 pos [4x + 2,4y + 1]
-    mov r15, [rel temp_interp + 4*8]   ; rax = dirección donde se guardó c1
+    mov r15, [rel temp_interp + 2*8]   ; rax = dirección donde se guardó c1
     mov al, [r15]
     mov bl, 2
-    mov r12, [rel temp_interp + 5*8]   ; rbx = dirección donde se guardó c2
+    mov r12, [rel temp_interp + 3*8]   ; rbx = dirección donde se guardó c2
     mov r8b, [r12] 
     mov r12b, 1
     mov r10, r9
@@ -262,10 +264,10 @@ inner_loop:
     mov r15, r10
     call interpolar
     ; i = (1/3) * g1 + (2/3)*g2 pos [4x + 2,4y + 2]
-    mov r15, [rel temp_interp + 4*8]   ; rax = dirección donde se guardó c1
+    mov r15, [rel temp_interp + 2*8]   ; rax = dirección donde se guardó c1
     mov al, [r15]
     mov bl, 1
-    mov r12, [rel temp_interp + 5*8]   ; rbx = dirección donde se guardó c2
+    mov r12, [rel temp_interp + 3*8]   ; rbx = dirección donde se guardó c2
     mov r8b, [r12] 
     mov r12b, 2
     mov r10, r9
@@ -277,19 +279,19 @@ inner_loop:
     mov r15, r10
     call interpolar
     ; Incrementar columna
-    inc r13
+    add r13, 1
     cmp r13, 96         ; 0..95
     jl inner_loop
-    inc r14
+    add r14, 1
     cmp r14, 96         ; 0..95
     jl outer_loop
     ; Copiar pixel (96,96) de input_buffer a (192,192) de output_buffer
     ; Cargar último pixel
     movzx eax, byte [rsi + 96*97 + 96]
     ; Calcular posición en output_buffer
-    mov r8, 192
+    mov r8, 384
     imul r8, 385          ; 192 * 385
-    add r8, 192           ; +192 columnas
+    add r8, 384           ; +192 columnas
     add r8, rdi           ; base de output_buffer
 
     ; Guardar
@@ -333,23 +335,33 @@ inner_loop:
 ; RDI = destino donde guardar resultado
 ; --------------------------------------------------
 interpolar:
-    mov dl, r8b          ; Guardar valor derecho en DL
-    mul bl              ; AL * peso_izq
-    mov cl, al          ; Guardar resultado parcial
+    ; Extender valores a 16 bits
+    movzx ax, byte [rel pixel_buffer + 0]  ; valor1 (A/B/C/D)
+    movzx bx, bl                           ; peso1 (2/1)
+    imul ax, bx             ; AX = valor1 * peso1
 
-    mov al, dl          ; AL = valor derecho
-    mul r12b              ; AL * peso_der
-    add al, cl          ; Sumar ambos productos
+    movzx cx, r8b           ; valor2 
+    movzx dx, r12b          ; peso2
+    imul cx, dx             ; CX = valor2 * peso2
 
-    ; para garantizar que AH=0 antes de div dl
-    and ax, 0x00FF          ; Limpiar AH para división
-    mov dl, 3           ; Divisor
-    add al, 1           ; <<<<<<<<<<<<<<  Aquí redondeamos
-    div dl              ; AL = AL / 3 (ya redondeado)
+    add ax, cx              ; Suma total (16 bits)
+    add ax, 1               ; Redondeo
+    mov bx, 3
+    xor dx, dx
+    div bx                  ; AX = (suma + 1) / 3
 
-    mov [r15], al       ; Guardar resultado
+    ; Manejar residuo para redondeo preciso
+    cmp dx, 2
+    jb .no_redondear
+    inc ax                  ; Redondear hacia arriba
+.no_redondear:
+    ; Saturar a 255
+    cmp ax, 255
+    jbe .guardar
+    mov ax, 255
+.guardar:
+    mov [r15], al           ; Guardar resultado (8 bits)
     ret
-
 section .data
 input_filename db "quadrant.img", 0
 output_filename db "output.img", 0
