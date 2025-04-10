@@ -336,7 +336,7 @@ inner_loop:
 ; --------------------------------------------------
 interpolar:
     ; Extender valores a 16 bits
-    movzx ax, byte [rel pixel_buffer + 0]  ; valor1 (A/B/C/D)
+    movzx ax, al ; valor1 (A/B/C/D)
     movzx bx, bl                           ; peso1 (2/1)
     imul ax, bx             ; AX = valor1 * peso1
 
