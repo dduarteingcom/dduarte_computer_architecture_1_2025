@@ -23,6 +23,10 @@ class ImageProcessor:
         subprocess.run(["ld", "-o", "interpolation", "interpolation.o"], check=True)
         # 3. Ejecutar el programa directamente en Linux
         subprocess.run(["./interpolation"], check = True)
+        self.img_to_jpeg(fileName,"no_interpolada.jpg", 97, 97 )
+        self.img_to_jpeg("output.img", "interpolada.jpg", 385, 385)
+        #self.pruebita()
+    
         
     def get_quadrant_array(self, quadrantN):
         rowN = (quadrantN - 1) // 4
