@@ -1,4 +1,8 @@
-BITS 64            ; <-- ¡MUY IMPORTANTE!
+;Las etiquetas skip son necesarias para evitar cálculos de la última columna
+;Las etiquetas discard son necesarias para evitar cálculos de la última fila
+;La etiqueta final_line es utilizada para ir al final de la iteración para la última fila
+;La etiqueta final_column es utilizada para ir al final de la iteración para la última columna
+BITS 64           
 section .bss
 input_buffer resb 97*97
 output_buffer resb 385*385
@@ -51,26 +55,24 @@ inner_loop:
     add r10, r13
     movzx eax, byte[rsi + r10]
     cmp r13, 96
-    je try1
+    je skip1 ;Para evitar cargar B y D en la última columna
     ; B = input[x][y+1]
     inc r10
     movzx ebx, byte[rsi + r10]
     cmp r14, 96
-    je temp1
+    je discard1 ;Para evitar cargar C y D en la última fila
     ; D = input[x+1][y+1]
     mov r10, r9
     add r10, r13
     inc r10
     movzx edx, byte[rsi + r10]
-try1:
+skip1:
     ; C = input[x+1][y]
     mov r10, r9
     add r10, r13
     movzx ecx, byte[rsi + r10]
-
-
     ;  === Cargar A, B, C, D al output_buffer ===
-temp1:
+discard1:
     ;offset_x = x * 4 * 385
     mov r9, r14
     imul r9, 4
@@ -89,7 +91,7 @@ temp1:
     mov [rdi + r12], al
     mov [rel pixel_buffer + 0], al
     cmp r13, 96
-    je try2
+    je skip2 ;Para evitar guardar B y D en output_buffer de la última columna
     ;output[4x][4y + 3] = B
     mov r12, r9
     add r12, r11
@@ -97,14 +99,14 @@ temp1:
     mov [rdi + r12], bl
     mov [rel pixel_buffer + 1], bl
     cmp r14, 96
-    je temp2
+    je discard2 ;Para evitar guardar C y D en output_buffer de la última fila
     ; output[4x + 3][4y + 3] = D
     mov r12, r10
     add r12, r11
     add r12, 3
     mov [rdi + r12], dl 
     mov [rel pixel_buffer + 3], dl
-try2:
+skip2:
     ; output[4x + 3][4y] = C
     mov r12, r10
     add r12, r11
@@ -112,11 +114,13 @@ try2:
     mov [rel pixel_buffer + 2], cl
  
 
-temp2:    
+discard2:    
     ;offset_x = x * 4
     mov r9, r14
     imul r9, 4
-    ;offset_y ya está aplicado
+
+    cmp r13, 96
+    je skip3 ;Para  solo calcular c1 y g1 de la última columna
 
     ; a1 = (2/3)*A + (1/3)*B pos [4x,4y+1]
     mov al, [rel pixel_buffer + 0]
@@ -130,8 +134,7 @@ temp2:
     add r10, rdi
     mov r15, r10
     call interpolar
-    cmp r13, 96
-    je try3
+    
     ; a2 = (1/3)*A + (2/3)*B pos [4x,4y+2]
     mov al, [rel pixel_buffer + 0]
     mov bl, 1
@@ -145,8 +148,8 @@ temp2:
     mov r15, r10
     call interpolar
     cmp r14, 96
-    je final_line
-try3:
+    je final_line ; Solo se tiene que cacular a1 y a2 en la última fila, se salta al final de la iteración
+skip3:
     ; c1 = (2/3)*A + (1/3)*C pos [4x + 1,4y]
     mov al, [rel pixel_buffer + 0]
     mov bl, 2
@@ -161,7 +164,6 @@ try3:
     mov [rel temp_interp + 0*8], r15
     call interpolar
 
-
     ; g1 = (1/3)*A + (2/3)*C pos [4x + 2,4y]
     mov al, [rel pixel_buffer + 0]
     mov bl, 1
@@ -175,7 +177,7 @@ try3:
     mov r15, r10
     mov [rel temp_interp + 2*8], r15
     call interpolar
-    cmp r13, 96
+    cmp r13, 96 ;Ya se calcula c1 y g1 por lo que se va al final de la iteración cuando se está en la última columna
     je final_colmun
 
     ; c2 = (2/3)*B + (1/3)*D pos [4x + 1,4y + 3]
@@ -301,15 +303,15 @@ try3:
 final_line:
     ; Incrementar columna
     add r13, 1
-    cmp r13, 97         ; 0..95
+    cmp r13, 97         ; 0..96
     jl inner_loop
-final_colmun
+final_colmun:
     add r14, 1
     cmp r14, 97
     je ultimo_pixel
-    cmp r14, 97           ; 0..95
+    cmp r14, 97           ; 0..96
     jl outer_loop
-ultimo_pixel
+ultimo_pixel:
     ; Copiar pixel (96,96) de input_buffer a (192,192) de output_buffer
     ; Cargar último pixel
     movzx eax, byte [rsi + 96*97 + 96]
@@ -324,12 +326,7 @@ ultimo_pixel
     mov r13, 0
     mov r14, 0
 
-    
-
-
-    ; ------------------------------------
     ; Escribir output_buffer a output.img
-    ; ------------------------------------
 
     ; Abrir (crear) output.img en modo escritura (O_WRONLY | O_CREAT | O_TRUNC)
     mov rax, 2                  ; syscall open
@@ -357,14 +354,14 @@ ultimo_pixel
     xor rdi, rdi        ; status 0
     syscall
 
-; --------------------------------------------------
+
 ; Subrutina interpolar:
 ; AL = valor izquierdo
 ; BL = peso izquierdo
-; AH = valor derecho
-; BH = peso derecho
-; RDI = destino donde guardar resultado
-; --------------------------------------------------
+; R8B = valor derecho
+; R12B = peso derecho
+; R15 = destino donde guardar resultado
+
 interpolar:
     ; Extender valores a 16 bits
     movzx ax, al ; valor1 (A/B/C/D)
@@ -383,14 +380,14 @@ interpolar:
 
     ; Manejar residuo para redondeo preciso
     cmp dx, 2
-    jb .no_redondear
+    jb no_redondear
     inc ax                  ; Redondear hacia arriba
-.no_redondear:
+no_redondear:
     ; Saturar a 255
     cmp ax, 255
-    jbe .guardar
+    jbe guardar
     mov ax, 255
-.guardar:
+guardar:
     mov [r15], al           ; Guardar resultado (8 bits)
     ret
 section .data
